@@ -128,8 +128,19 @@ public:
 
     void setCredits(uint8_t credits);
     uint8_t getCredits() const { return credits_; }
+    
+    /**
+     * BUG-02 v2 FIX: Déclencher une impulsion de credit (coin) pour 1 frame seulement
+     */
+    void triggerCoin();
+    
     void setVies(uint8_t vies);  // 0=3, 1=4, 2=5, 3=6
-    void setBonus(bool bonus);   // true = 1500 pts, false = 1000 pts
+    void setBonus(bool bonus);   // true = 1500 pts (bit3=0), false = 1000 pts (bit3=1)
+    
+    /**
+     * BUG-07 v2 FIX: Définir le DIP Switch Coin Info (Bit 7 Port 2)
+     */
+    void setCoinSwitchEnabled(bool enabled);
 
     // ==================== CONTRÔLES DIRECTS (pour clavier Raylib) ====================
 
@@ -148,6 +159,13 @@ public:
      * Utilisé par emulator.cpp pour connecter CPU IN instruction → input states
      */
     void setInputKeyState(uint8_t key, bool state);
+
+    // ==================== EXPOSITION POUR EMULATOR.CPP ====================
+
+    /**
+     * BUG-03 v2 FIX: Mettre à jour les états d'impulsion (reset Start P1, Coin)
+     */
+    void updateInput();
 
     // ==================== AUDIO CALLBACKS ====================
 
@@ -187,8 +205,19 @@ private:
     bool p1_start_state_;
     bool p2_start_state_;
     
-    // BUG-02 FIX: Flag impulsion pour reset Start P1 après un frame
+    // BUG-02 FIX: Flag impulsion pour reset Start P1 après 1 frame
     bool p1_start_impulse_;
+    
+    /**
+     * BUG-02 v2 FIX: Flag impulsion pour credit (coin) — 1 frame seulement
+     */
+    bool coin_impulse_;
+
+    // DIP Switches
+    /**
+     * BUG-07 v2 FIX: Coin Info / DIP Switch (Bit 7 Port 2)
+     */
+    bool coin_switch_enabled_;
 
     // Callbacks audio externes
     AudioCallback audio_callback_3_;

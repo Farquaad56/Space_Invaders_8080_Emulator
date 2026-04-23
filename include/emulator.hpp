@@ -106,6 +106,16 @@ public:
     // Direct input control from GUI
     void setInputKeyState(uint8_t key, bool state) { input_.setInputKeyState(key, state); }
     void triggerStartP1() { input_.triggerStartP1(); }
+    
+    /**
+     * BUG-02 v2 FIX: Déclencher impulsion credit (coin) pour 1 frame
+     */
+    void triggerCoin() { input_.triggerCoin(); }
+    
+    /**
+     * BUG-03 v2 FIX: Mettre à jour les états d'impulsion (reset Start P1, Coin)
+     */
+    void updateInput() { input_.updateInput(); }
 
 private:
     CPU8080 cpu_;

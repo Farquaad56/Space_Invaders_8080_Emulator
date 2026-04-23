@@ -739,22 +739,24 @@ void DrawCPUStatePanel(Emulator& emulator, GameParams& gameParams) {
     ImGui::Separator();
     ImGui::TextColored(CYAN_COLOR, "--- DIP SWITCHES ---");
 
-    // DIP Switch 1 : Coin Switch (Bit 7 Port 2)
+    // BUG-07 v2 FIX: DIP Switch Coin Insert — connecté à emulator
     static bool dipCoinSwitch = false;
     if (ImGui::Checkbox("Coin Insert Enabled", &dipCoinSwitch)) {
-        gameParams.coinSwitch = dipCoinSwitch ? 0x80 : 0x00;
+        emulator.getInput().setCoinSwitchEnabled(dipCoinSwitch);
     }
 
-    // DIP Switch 2 : Bonus Score (Bit 3 Port 2)
-    static bool dipBonusScore = true;
-    if (ImGui::Checkbox("Bonus 1500pts", &dipBonusScore)) {
-        gameParams.port2 = dipBonusScore ? 0x08 : 0x00;
+    // BUG-08 v2 FIX: DIP Switch Bonus Score — logique correcte spec Taito 1978
+    // bonus_=true (defaut) → 1500pts → bit3=0 dans readPort2()
+    // bonus_=false → 1000pts → bit3=1 dans readPort2()
+    static bool dipBonus1500 = true;  // true = 1500pts (défaut hardware)
+    if (ImGui::Checkbox("Bonus à 1500pts (défaut)", &dipBonus1500)) {
+        emulator.getInput().setBonus(dipBonus1500);
     }
 
-    // DIP Switch 3 : Vies initiales (Bit 0-1 Port 2)
+    // BUG-09 v2 FIX: DIP Switch Initial Lives — connecté à emulator
     static int dipInitialLives = 0; // 0=3, 1=4, 2=5, 3=6
     if (ImGui::Combo("Initial Lives", &dipInitialLives, "3\04\05\06")) {
-        gameParams.port2 = (gameParams.port2 & 0xFC) | (dipInitialLives & 0x03);
+        emulator.getInput().setVies(static_cast<uint8_t>(dipInitialLives));
     }
 
     // DIP Switch 4 : Game Mode
@@ -786,8 +788,8 @@ void DrawCPUStatePanel(Emulator& emulator, GameParams& gameParams) {
         if (gameParams.credits < 99) gameParams.credits++;
     }
 
-    // Appliquer les crédits à l'émulateur
-    emulator.setCredits(static_cast<uint8_t>(gameParams.credits));
+    // BUG-02 v2 FIX: Ne plus appeler setCredits() chaque frame
+    // Les credits sont gérés via triggerCoin() sur KEY_C uniquement
 
     ImGui::Separator();
 
@@ -967,12 +969,12 @@ int main_gui(int argc, char* argv[]) {
                 emulator.triggerStartP1();
             }
             
-            // C → Ajouter un credit (impulsion)
+            // C → Ajouter un credit (impulsion triggerCoin — BUG-02 v2 FIX)
             if (IsKeyPressed(KEY_C)) {
                 int currentCredits = gameParams.credits + 1;
                 if (currentCredits > 99) currentCredits = 99;
                 gameParams.credits = currentCredits;
-                emulator.setCredits(static_cast<uint8_t>(gameParams.credits));
+                emulator.triggerCoin();  // BUG-02 v2 FIX: impulsion 1 frame au lieu de setCredits()
             }
         }
 
@@ -980,8 +982,8 @@ int main_gui(int argc, char* argv[]) {
         if (!emulator.isPaused() && romsLoaded) {
             emulator.runFrame();
             
-            // Reset du Start P1 après exécution (impulsion)
-            emulator.setInputKeyState(0x02, false);
+            // BUG-03 v2 FIX + BUG-04 v2 FIX: updateInput() remplace setInputKeyState(0x02, false)
+            emulator.updateInput();  // Reset Start P1 impulse + Coin impulse après 1 frame
         }
 
         BeginDrawing();

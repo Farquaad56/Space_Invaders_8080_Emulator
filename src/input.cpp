@@ -29,12 +29,9 @@ static std::string audioBasePath = "";
 static void initAudioInternal() {
     if (audioInitialized) return;
     
-    // Initialiser explicitement le device audio Raylib avec des paramètres standards
-    // Cela contourne le bug de format WAV non-standard (11025 Hz au lieu de 44100 Hz)
-    InitAudioDevice();                              // Ouvrir le device audio
-    
-    // Configurer les buffers par défaut pour éviter les erreurs de conversion
-    SetAudioStreamBufferSizeDefault(512);           // Buffer plus petit pour WAV simples
+    // BUG-01 v2 FIX: Inverser l'ordre — SetAudioStreamBufferSizeDefault AVANT InitAudioDevice
+    SetAudioStreamBufferSizeDefault(4096);          // Buffer recommandé (était 512, trop petit)
+    InitAudioDevice();                              // Ouvrir le device audio après config buffer
     
     std::cout << "[AUDIO] Device audio initialisé" << std::endl;
     
@@ -141,32 +138,26 @@ void InputSystem::initAudioEarly() {
     initAudioInternal();
 }
 
-// Jouer un son one-shot (déclenché sur front montant)
+// BUG-05 v2 FIX + BUG-06 v2 FIX: Guard buffer nullptr + supprimer std::cout
 static void playOneShot(int index, const std::string& name) {
     if (!audioInitialized) initAudioInternal();  // lazy-load si nécessaire
-    if (index >= 0 && index < 9) {
+    if (index >= 0 && index < 9 && sounds[index].stream.buffer != nullptr) {
         PlaySound(sounds[index]);
-        std::cout << "[AUDIO] OneShot: " << name << " (idx=" << index << ")" << std::endl;
-    } else {
-        std::cerr << "[AUDIO] Index invalide: " << index << " pour " << name << std::endl;
     }
 }
 
-// Démarrer/arrêter la boucle UFO
+// BUG-06 v2 FIX: Supprimer std::cout de startUfoLoop/stopUfoLoop
 static void startUfoLoop() {
     if (!ufoLoopPlaying) {
         playOneShot(0, "ufo.wav");  // Raylib joue en boucle si redémarré rapidement
         ufoLoopPlaying = true;
-        std::cout << "[AUDIO] UFO Loop START" << std::endl;
     }
 }
 
 static void stopUfoLoop() {
     if (ufoLoopPlaying) {
-        // Arrêter le son UFO
         StopSound(sounds[0]);
         ufoLoopPlaying = false;
-        std::cout << "[AUDIO] UFO Loop STOP" << std::endl;
     }
 }
 
@@ -211,15 +202,19 @@ InputSystem::InputSystem() {
     p2_right_state_ = false;
     p1_start_state_ = false;
     p2_start_state_ = false;
+    p1_start_impulse_ = false;
+    coin_impulse_ = false;           // BUG-02 v2 FIX: impulsion credit
+    coin_switch_enabled_ = false;    // BUG-07 v2 FIX: DIP Switch Coin Info
     
     std::cout << "[DEBUG] InputSystem constructor: credits_=0, vies_=3" << std::endl;
 }
 
+// BUG-02 v2 FIX: Credits doivent être une impulsion 1 frame (coin_impulse_)
 uint8_t InputSystem::readPort1() {
     uint8_t value = 0;
     
-    // Bit 0 : P2 Credit / Coin Insert (1 = credit disponible)
-    if (credits_ > 0) {
+    // Bit 0 : P2 Credit / Coin Insert — impulsion 1 frame seulement
+    if (coin_impulse_) {
         value |= (1 << 0);
     }
     
@@ -269,6 +264,7 @@ uint8_t InputSystem::readPort1() {
     return value;
 }
 
+// BUG-08 v2 FIX: Bonus logic correcte + BUG-07 v2 FIX: Coin Switch Bit 7 + BUG-10 v2 FIX: read p2_*_state_
 uint8_t InputSystem::readPort2() {
     uint8_t value = 0;
     
@@ -278,25 +274,29 @@ uint8_t InputSystem::readPort2() {
     }
     
     // Bit 2 : Tilt (non implémenté par défaut = 0)
-    // Bit 3 : Bonus (0=1500 pts, 1=1000 pts) — par défaut 1500 = 0
-    if (bonus_) {
+    
+    // BUG-08 v2 FIX: Bonus — spec Taito 1978: bit3=0 → 1500pts (defaut), bit3=1 → 1000pts
+    // bonus_=true (defaut) → 1500pts → bit3=0 (ne pas mettre)
+    // bonus_=false → 1000pts → bit3=1 (mettre)
+    if (!bonus_) {
         value |= (1 << 3);
     }
     
-    // Bit 4-6 : P2 Tir/Gauche/Droite (optionnels)
-    if (p2_fire_ && p2_fire_()) {
+    // BUG-10 v2 FIX: P2 Tir/Gauche/Droite — lire states directs OU callbacks
+    if (p2_fire_state_ || (p2_fire_ && p2_fire_())) {
         value |= (1 << 4);
     }
-    if (p2_left_ && p2_left_()) {
+    if (p2_left_state_ || (p2_left_ && p2_left_())) {
         value |= (1 << 5);
     }
-    if (p2_right_ && p2_right_()) {
+    if (p2_right_state_ || (p2_right_ && p2_right_())) {
         value |= (1 << 6);
     }
     
-    // Bit 7 : Coin Info (DIP Switch) — par défaut = 0
-    // Si coin switch enabled, bit 7 = 1
-    // (géré par le DIP switch dans GUI)
+    // BUG-07 v2 FIX: Bit 7 — Coin Info / DIP Switch
+    if (coin_switch_enabled_) {
+        value |= (1 << 7);
+    }
     
     return value;
 }
@@ -402,16 +402,45 @@ void InputSystem::update() {
         p1_start_state_ = false;
         p1_start_impulse_ = false;
     }
+    
+    // BUG-02 v2 FIX: Reset de l'impulsion coin après 1 frame
+    if (coin_impulse_) {
+        coin_impulse_ = false;
+    }
+}
+
+// ==================== NOUVELLES MÉTHODES ====================
+
+void InputSystem::triggerCoin() {
+    // BUG-02 v2 FIX: Déclencher impulsion credit pour 1 frame seulement
+    credits_++;
+    if (credits_ > 99) credits_ = 99;
+    coin_impulse_ = true;  // Bit 0 = 1 pour cette lecture uniquement
+}
+
+void InputSystem::setCoinSwitchEnabled(bool enabled) {
+    // BUG-07 v2 FIX: DIP Switch Coin Info (Bit 7 Port 2)
+    coin_switch_enabled_ = enabled;
+}
+
+void InputSystem::updateInput() {
+    // BUG-03 v2 FIX: Mettre à jour les états d'impulsion
+    update();
 }
 
 // ==================== CONTRÔLES DIRECTS ====================
 
+// BUG-01 FIX: Ajouter mappings P2 dans setKeyState()
 void InputSystem::setKeyState(uint8_t key, bool state) {
     switch(key) {
         case 0x04: p1_fire_state_ = state; break;   // P1 Fire (bit 4)
         case 0x05: p1_left_state_ = state; break;   // P1 Left (bit 5)
         case 0x06: p1_right_state_ = state; break;  // P1 Right (bit 6)
         case 0x02: p1_start_state_ = state; break;  // P1 Start (bit 2)
+        case 0x01: p2_start_state_ = state; break;  // BUG-01 FIX: P2 Start (bit 1 port 1)
+        case 0x11: p2_fire_state_ = state; break;   // BUG-01 FIX: P2 Fire (bit 4 port 2)
+        case 0x12: p2_left_state_ = state; break;   // BUG-01 FIX: P2 Left (bit 5 port 2)
+        case 0x13: p2_right_state_ = state; break;  // BUG-01 FIX: P2 Right (bit 6 port 2)
     }
 }
 
