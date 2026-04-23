@@ -1,0 +1,48 @@
+# Build outputs
+cmake-build-debug/
+build/
+*.exe
+*.dll
+*.pdb
+*.lib
+*.obj
+*.iobj
+*.pchi
+
+# Package manager
+vcpkg/
+vcpkg_installed/
+
+# IDE
+.idea/
+*.slnx
+*.vcxproj
+*.vcxproj.filters
+
+# ImGui config
+imgui.ini
+
+# ROMs (licenced files - not to be uploaded)
+assets/roms/*.e
+assets/roms/*.f
+assets/roms/*.g
+assets/roms/*.h
+assets/roms/*.zip
+
+# Documentation (internal reports)
+*.md
+!README.md
+
+# Images/screenshots
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Temporary files
+dirlist.txt
+Capture*
+
+# OS files
+.DS_Store
+Thumbs.db
