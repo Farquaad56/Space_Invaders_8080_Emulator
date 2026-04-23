@@ -107,17 +107,10 @@ void Emulator::setupIOHandlers() {
     };
 
     // Handler écriture port 3 (son banque 1)
+    // BUG-03 FIX: Suppression des setAudioCallback() inutiles dans le handler d'écriture
+    // writePort3() gère déjà correctement le son avec détection de front montant
     auto writePort3Handler = [this](uint8_t data) {
         this->ioWritePort3(data);
-        
-        // BUG FIX: Déclencher les sons via InputSystem audio callbacks
-        input_.setAudioCallback(0x03, [this](uint8_t soundData) {
-            // Banque 1 : UFO loop, tir joueur, mort joueur, mort alien
-            if (soundData & 0x01) { /* UFO loop */ }
-            if (soundData & 0x02) { /* Player shot */ }
-            if (soundData & 0x04) { /* Player death */ }
-            if (soundData & 0x08) { /* Alien death */ }
-        });
     };
     
     // Handler écriture port 4 (shift data)
@@ -126,18 +119,10 @@ void Emulator::setupIOHandlers() {
     };
     
     // Handler écriture port 5 (son banque 2)
+    // BUG-03 FIX: Suppression des setAudioCallback() inutiles dans le handler d'écriture
+    // writePort5() gère déjà correctement le son avec détection de front montant
     auto writePort5Handler = [this](uint8_t data) {
         this->ioWritePort5(data);
-        
-        // BUG FIX: Déclencher les sons via InputSystem audio callbacks
-        input_.setAudioCallback(0x05, [this](uint8_t soundData) {
-            // Banque 2 : Pas aliens (4 niveaux), UFO hit
-            if (soundData & 0x01) { /* Alien step 1 */ }
-            if (soundData & 0x02) { /* Alien step 2 */ }
-            if (soundData & 0x04) { /* Alien step 3 */ }
-            if (soundData & 0x08) { /* Alien step 4 */ }
-            if (soundData & 0x10) { /* UFO hit */ }
-        });
     };
 
     // Handler lecture/écriture port 0 (certaines révisions Space Invaders l'utilisent)
@@ -168,9 +153,9 @@ uint8_t Emulator::ioReadPort2(uint8_t) {
 }
 
 void Emulator::ioWritePort2(uint8_t data) {
-    // Écrire dans le shift register (offset de décalage)
+    // BUG-05 FIX: Supprimer input_.writePort2(data) — doublon inutile
+    // Le port 2 en écriture correspond exclusivement au ShiftRegister (MB14241)
     shift_register_.writePort2(data);
-    input_.writePort2(data);
 }
 
 void Emulator::ioWritePort3(uint8_t data) {

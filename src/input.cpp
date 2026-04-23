@@ -251,14 +251,20 @@ uint8_t InputSystem::readPort1() {
         value |= (1 << 6);
     }
     
-    // DEBUG: Logger chaque lecture CPU du port 1
-    std::cout << "[DEBUG] readPort1: credits=" << (int)credits_ 
-              << " p1_start=" << (p1_start_state_ ? 1 : 0)
-              << " fire=" << (p1_fire_state_ ? 1 : 0)
-              << " left=" << (p1_left_state_ ? 1 : 0)
-              << " right=" << (p1_right_state_ ? 1 : 0)
-              << " value=0x" << std::hex << (int)value << std::dec 
-              << " (binary: " << (int)value << ")" << std::endl;
+    // BUG-04 FIX: Logger conditionnel uniquement en mode DEBUG compile-time
+    // Suppression du spam std::cout qui bloque le thread CPU (~60 000×/s)
+    #ifdef DEBUG_INPUT
+    static int logCounter = 0;
+    if (++logCounter % 100 == 0) {
+        std::cout << "[DEBUG] readPort1: credits=" << (int)credits_ 
+                  << " p1_start=" << (p1_start_state_ ? 1 : 0)
+                  << " fire=" << (p1_fire_state_ ? 1 : 0)
+                  << " left=" << (p1_left_state_ ? 1 : 0)
+                  << " right=" << (p1_right_state_ ? 1 : 0)
+                  << " value=0x" << std::hex << (int)value << std::dec 
+                  << " (binary: " << (int)value << ")" << std::endl;
+    }
+    #endif
     
     return value;
 }
@@ -391,8 +397,11 @@ void InputSystem::setStartMapping(
 }
 
 void InputSystem::update() {
-    // Mise à jour des entrées (à appeler dans la boucle principale)
-    // Les fonctions std::function sont appelées dans readPort1/readPort2
+    // BUG-02 FIX: Reset de l'état Start P1 après impulsion
+    if (p1_start_impulse_) {
+        p1_start_state_ = false;
+        p1_start_impulse_ = false;
+    }
 }
 
 // ==================== CONTRÔLES DIRECTS ====================
@@ -408,7 +417,7 @@ void InputSystem::setKeyState(uint8_t key, bool state) {
 
 void InputSystem::triggerStartP1() {
     p1_start_state_ = true;
-    // Reset après un frame (géré par update())
+    p1_start_impulse_ = true;  // BUG-02 FIX: Marquer pour reset dans update()
 }
 
 void InputSystem::setAudioCallback(uint8_t port, AudioCallback cb) {

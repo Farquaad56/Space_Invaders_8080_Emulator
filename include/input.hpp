@@ -186,6 +186,9 @@ private:
     bool p2_right_state_;
     bool p1_start_state_;
     bool p2_start_state_;
+    
+    // BUG-02 FIX: Flag impulsion pour reset Start P1 après un frame
+    bool p1_start_impulse_;
 
     // Callbacks audio externes
     AudioCallback audio_callback_3_;

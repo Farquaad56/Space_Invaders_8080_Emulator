@@ -85,13 +85,14 @@ void CPU8080::initInstructions() {
         return 1;
     };
 
-    // INR instructions (0x04, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x3C) — 5 T-states
+    // BUG-07 FIX: INR reg = 5 T-states (spec Intel 8080)
     instructions[0x04] = [](CPU8080& cpu) -> uint8_t {
         cpu.regs.b = static_cast<uint8_t>(cpu.regs.b + 1);
         cpu.flags.setZero(cpu.regs.b == 0);
         cpu.flags.setSign((cpu.regs.b & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.b));
         cpu.flags.setAuxiliaryCarry((cpu.regs.b & 0x0F) == 0);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x0C] = [](CPU8080& cpu) -> uint8_t {
@@ -100,6 +101,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.c & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.c));
         cpu.flags.setAuxiliaryCarry((cpu.regs.c & 0x0F) == 0);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x14] = [](CPU8080& cpu) -> uint8_t {
@@ -108,6 +110,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.d & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.d));
         cpu.flags.setAuxiliaryCarry((cpu.regs.d & 0x0F) == 0);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x1C] = [](CPU8080& cpu) -> uint8_t {
@@ -116,6 +119,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.e & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.e));
         cpu.flags.setAuxiliaryCarry((cpu.regs.e & 0x0F) == 0);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x24] = [](CPU8080& cpu) -> uint8_t {
@@ -124,6 +128,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.h & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.h));
         cpu.flags.setAuxiliaryCarry((cpu.regs.h & 0x0F) == 0);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x2C] = [](CPU8080& cpu) -> uint8_t {
@@ -132,6 +137,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.l & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.l));
         cpu.flags.setAuxiliaryCarry((cpu.regs.l & 0x0F) == 0);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x3C] = [](CPU8080& cpu) -> uint8_t {
@@ -140,10 +146,11 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.a & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.a));
         cpu.flags.setAuxiliaryCarry((cpu.regs.a & 0x0F) == 0);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
 
-    // INR M: 0x34 — 10 T-states
+    // BUG-07 FIX: INR M = 10 T-states (spec Intel 8080)
     instructions[0x34] = [](CPU8080& cpu) -> uint8_t {
         uint16_t hl = (cpu.regs.h << 8) | cpu.regs.l;
         uint8_t val = static_cast<uint8_t>(cpu.memory.read(hl) + 1);
@@ -152,16 +159,18 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((val & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(val));
         cpu.flags.setAuxiliaryCarry((val & 0x0F) == 0);
+        cpu.currentInstructionTStates = 10;
         return 1;
     };
 
-    // DCR instructions (0x05, 0x0D, 0x15, 0x1D, 0x25, 0x2D, 0x3D) — 5 T-states
+    // BUG-07 FIX: DCR reg = 5 T-states (spec Intel 8080)
     instructions[0x05] = [](CPU8080& cpu) -> uint8_t {
         cpu.regs.b = static_cast<uint8_t>(cpu.regs.b - 1);
         cpu.flags.setZero(cpu.regs.b == 0);
         cpu.flags.setSign((cpu.regs.b & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.b));
         cpu.flags.setAuxiliaryCarry((cpu.regs.b & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x0D] = [](CPU8080& cpu) -> uint8_t {
@@ -170,6 +179,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.c & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.c));
         cpu.flags.setAuxiliaryCarry((cpu.regs.c & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x15] = [](CPU8080& cpu) -> uint8_t {
@@ -178,6 +188,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.d & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.d));
         cpu.flags.setAuxiliaryCarry((cpu.regs.d & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x1D] = [](CPU8080& cpu) -> uint8_t {
@@ -186,6 +197,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.e & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.e));
         cpu.flags.setAuxiliaryCarry((cpu.regs.e & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x25] = [](CPU8080& cpu) -> uint8_t {
@@ -194,6 +206,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.h & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.h));
         cpu.flags.setAuxiliaryCarry((cpu.regs.h & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x2D] = [](CPU8080& cpu) -> uint8_t {
@@ -202,6 +215,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.l & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.l));
         cpu.flags.setAuxiliaryCarry((cpu.regs.l & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
     instructions[0x3D] = [](CPU8080& cpu) -> uint8_t {
@@ -210,10 +224,11 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((cpu.regs.a & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(cpu.regs.a));
         cpu.flags.setAuxiliaryCarry((cpu.regs.a & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 5;
         return 1;
     };
 
-    // DCR M: 0x35 — 10 T-states
+    // BUG-07 FIX: DCR M = 10 T-states (spec Intel 8080)
     instructions[0x35] = [](CPU8080& cpu) -> uint8_t {
         uint16_t hl = (cpu.regs.h << 8) | cpu.regs.l;
         uint8_t val = static_cast<uint8_t>(cpu.memory.read(hl) - 1);
@@ -222,6 +237,7 @@ void CPU8080::initInstructions() {
         cpu.flags.setSign((val & 0x80) != 0);
         cpu.flags.setParity(ALU::parity(val));
         cpu.flags.setAuxiliaryCarry((val & 0x0F) == 0x0F);
+        cpu.currentInstructionTStates = 10;
         return 1;
     };
 
@@ -455,33 +471,38 @@ void CPU8080::initInstructions() {
     };
 
     // DAD rp: 0x09(B), 0x19(D), 0x29(H), 0x39(SP) — 10 T-states
+    // BUG-06 FIX: DAD setCarry() pour overflow 16 bits
     instructions[0x09] = [](CPU8080& cpu) -> uint8_t {
-        uint16_t hl = (cpu.regs.h << 8) | cpu.regs.l;
-        uint16_t bc = (cpu.regs.b << 8) | cpu.regs.c;
-        uint16_t res = hl + bc;
-        cpu.regs.h = static_cast<uint8_t>(res >> 8);
+        uint32_t hl = (cpu.regs.h << 8) | cpu.regs.l;
+        uint32_t bc = (cpu.regs.b << 8) | cpu.regs.c;
+        uint32_t res = hl + bc;
+        cpu.flags.setCarry(res > 0xFFFF);
+        cpu.regs.h = static_cast<uint8_t>((res >> 8) & 0xFF);
         cpu.regs.l = static_cast<uint8_t>(res & 0xFF);
         return 1;
     };
     instructions[0x19] = [](CPU8080& cpu) -> uint8_t {
-        uint16_t hl = (cpu.regs.h << 8) | cpu.regs.l;
-        uint16_t de = (cpu.regs.d << 8) | cpu.regs.e;
-        uint16_t res = hl + de;
-        cpu.regs.h = static_cast<uint8_t>(res >> 8);
+        uint32_t hl = (cpu.regs.h << 8) | cpu.regs.l;
+        uint32_t de = (cpu.regs.d << 8) | cpu.regs.e;
+        uint32_t res = hl + de;
+        cpu.flags.setCarry(res > 0xFFFF);
+        cpu.regs.h = static_cast<uint8_t>((res >> 8) & 0xFF);
         cpu.regs.l = static_cast<uint8_t>(res & 0xFF);
         return 1;
     };
     instructions[0x29] = [](CPU8080& cpu) -> uint8_t {
-        uint16_t hl = (cpu.regs.h << 8) | cpu.regs.l;
-        uint16_t res = hl + hl;
-        cpu.regs.h = static_cast<uint8_t>(res >> 8);
+        uint32_t hl = (cpu.regs.h << 8) | cpu.regs.l;
+        uint32_t res = hl + hl;
+        cpu.flags.setCarry(res > 0xFFFF);
+        cpu.regs.h = static_cast<uint8_t>((res >> 8) & 0xFF);
         cpu.regs.l = static_cast<uint8_t>(res & 0xFF);
         return 1;
     };
     instructions[0x39] = [](CPU8080& cpu) -> uint8_t {
-        uint16_t hl = (cpu.regs.h << 8) | cpu.regs.l;
-        uint16_t res = hl + cpu.sp;
-        cpu.regs.h = static_cast<uint8_t>(res >> 8);
+        uint32_t hl = (cpu.regs.h << 8) | cpu.regs.l;
+        uint32_t res = hl + cpu.sp;
+        cpu.flags.setCarry(res > 0xFFFF);
+        cpu.regs.h = static_cast<uint8_t>((res >> 8) & 0xFF);
         cpu.regs.l = static_cast<uint8_t>(res & 0xFF);
         return 1;
     };
